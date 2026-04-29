@@ -9,13 +9,13 @@
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link active" aria-current="page" href="{{ route('home') }}">Home</a>
+                        <a class="nav-link active" aria-current="page" href="{{ route('home') }}"><i class="fa-solid fa-house"></i> Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ route('peta') }}">Peta</a>
+                        <a class="nav-link" href="{{ route('peta') }}"><i class="fa-solid fa-map"></i> Peta</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ route('tabel') }}">Tabel</a>
+                        <a class="nav-link" href="{{ route('tabel') }}"><i class="fa-solid fa-table"></i> Tabel</a>
                     </li>
                 </ul>
                 <form class="d-flex" role="search">

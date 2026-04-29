@@ -8,13 +8,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
 
     <style>
-        body {
+        body, html {
+            width: 100%;
+            height: 100%;
             margin: 0;
             padding: 0;
         }
 
         #map {
-            height: 100vh;
+            height: calc(100vh - 56px);
             width: 100%;
         }
 
@@ -63,7 +65,7 @@
                     <h5 class="modal-title">Input Point</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ route('points.store') }}" method="post">
+                <form action="{{ route('points.store') }}" method="post" enctype="multipart/form-data">
                     @csrf
                     <div class="modal-body">
                         <div class="mb-3">
@@ -78,6 +80,12 @@
                         <div class="mb-3">
                             <label for="geometry_point" class="form-label">Geometry</label>
                             <textarea class="form-control" id="geometry_point" name="geometry_point" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="image-point" class="form-label">Image</label>
+                            <input class="form-control" type="file" id="image-point" name="image" onchange="document.getElementById('preview-image-point').src = window.URL.createObjectURL(this.files[0])">
+                            <div class="mb-3">
+                                <img src="" alt="" id="preview-image-point" class="img-thumbnail" width="400"></div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -97,7 +105,7 @@
                     <h5 class="modal-title">Input Polyline</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ route('polylines.store') }}" method="post">
+                <form action="{{ route('polylines.store') }}" method="post" enctype="multipart/form-data">
                     @csrf
                     <div class="modal-body">
                         <div class="mb-3">
@@ -112,6 +120,12 @@
                         <div class="mb-3">
                             <label for="geometry_polyline" class="form-label">Geometry</label>
                             <textarea class="form-control" id="geometry_polyline" name="geometry_polyline" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="image-polyline" class="form-label">Image</label>
+                            <input class="form-control" type="file" id="image-polyline" name="image" onchange="document.getElementById('preview-image-polyline').src = window.URL.createObjectURL(this.files[0])">
+                            <div class="mb-3">
+                                <img src="" alt="" id="preview-image-polyline" class="img-thumbnail" width="400"></div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -131,7 +145,7 @@
                     <h5 class="modal-title">Input Polygon</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ route('polygons.store') }}" method="post">
+                <form action="{{ route('polygons.store') }}" method="post" enctype="multipart/form-data">
                     @csrf
                     <div class="modal-body">
                         <div class="mb-3">
@@ -146,6 +160,12 @@
                         <div class="mb-3">
                             <label for="geometry_polygon" class="form-label">Geometry</label>
                             <textarea class="form-control" id="geometry_polygon" name="geometry_polygon" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="image-polygon" class="form-label">Image</label>
+                            <input class="form-control" type="file" id="image-polygon" name="image" onchange="document.getElementById('preview-image-polygon').src = window.URL.createObjectURL(this.files[0])">
+                            <div class="mb-3">
+                                <img src="" alt="" id="preview-image-polygon" class="img-thumbnail" width="400"></div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -193,71 +213,6 @@
             shadowSize: [41, 41]
         });
 
-        // Load existing points data
-        fetch('/api/points')
-            .then(response => response.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    onEachFeature: function(feature, layer) {
-                        let popupContent = '<b>' + feature.properties.name + '</b><br>' +
-                            feature.properties.description;
-                        if (feature.properties.image) {
-                            popupContent += '<br><img src="' + feature.properties.image +
-                                '" style="max-width: 150px; margin-top: 5px;">';
-                        }
-                        layer.bindPopup(popupContent);
-                    },
-                    pointToLayer: function(feature, latlng) {
-                        return L.marker(latlng, {
-                            icon: pointIcon
-                        });
-                    }
-                }).addTo(map);
-            })
-            .catch(error => console.error('Error loading points:', error));
-
-        // Load existing polylines data
-        fetch('/api/polylines')
-            .then(response => response.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    onEachFeature: function(feature, layer) {
-                        layer.bindPopup('<b>' + feature.properties.name + '</b><br>' + feature.properties
-                            .description);
-                    },
-                    style: function(feature) {
-                        return {
-                            color: '#0066ff',
-                            weight: 3,
-                            opacity: 0.8
-                        };
-                    }
-                }).addTo(map);
-            })
-            .catch(error => console.error('Error loading polylines:', error));
-
-        // Load existing polygons data
-        fetch('/api/polygons')
-            .then(response => response.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    onEachFeature: function(feature, layer) {
-                        layer.bindPopup('<b>' + feature.properties.name + '</b><br>' + feature.properties
-                            .description);
-                    },
-                    style: function(feature) {
-                        return {
-                            color: '#ff6600',
-                            weight: 2,
-                            opacity: 0.8,
-                            fillColor: '#ffcc99',
-                            fillOpacity: 0.3
-                        };
-                    }
-                }).addTo(map);
-            })
-            .catch(error => console.error('Error loading polygons:', error));
-
         // Digitize Function
         var drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
@@ -291,6 +246,9 @@
             console.log(objectGeometry);
 
             if (type === 'polyline') {
+                // Add to polylines layer
+                polylinesLayer.addLayer(layer);
+
                 // Set value geometry to geometry_polyline textarea
                 $('#geometry_polyline').val(objectGeometry);
 
@@ -311,6 +269,9 @@
                     location.reload();
                 });
             } else if (type === 'polygon' || type === 'rectangle') {
+                // Add to polygons layer
+                polygonsLayer.addLayer(layer);
+
                 // Set value geometry to geometry_polygon textarea
                 $('#geometry_polygon').val(objectGeometry);
 
@@ -331,6 +292,9 @@
                     location.reload();
                 });
             } else if (type === 'marker') {
+                // Add to points layer
+                pointsLayer.addLayer(layer);
+
                 // Set value geometry to geometry_point textarea
                 $('#geometry_point').val(objectGeometry);
 
@@ -356,82 +320,102 @@
 
             drawnItems.addLayer(layer);
         });
-        //Points Layer
 
-        var points = L.geoJSON(null, {
-            onEachFeature: function(feature, layer) {
-                var popup_content = "Nama: " + feature.properties.name + "<br>" +
-                    "Deskripsi: " + feature.properties.description + "<br>" +
-                    "Dibuat: " + feature.properties.created_at;
+        // Create layer groups for control layers
+        var pointsLayer = L.layerGroup().addTo(map);
+        var polylinesLayer = L.layerGroup().addTo(map);
+        var polygonsLayer = L.layerGroup().addTo(map);
 
-                layer.on({
-                    click: function(e) {
-                        layer.bindPopup(popup_content).openPopup();
-                    }
-                });
-            }
-        });
+        var storageImageUrl = "{{ asset('storage/images') }}";
 
-        // ✅ letakkan di luar
+        // Load saved points
         $.getJSON("{{ route('geojson.points') }}", function(data) {
-            points.addData(data);
-            map.addLayer(points);
-        });
-        //Polylines Layer
+            L.geoJSON(data, {
+                pointToLayer: function(feature, latlng) {
+                    return L.marker(latlng, { icon: pointIcon });
+                },
+                onEachFeature: function(feature, layer) {
+                    var popupContent = '<b>Nama:</b> ' + (feature.properties.name || '') + '<br>' +
+                        '<b>Deskripsi:</b> ' + (feature.properties.description || '') + '<br>' +
+                        '<b>Dibuat:</b> ' + (feature.properties.created_at || '');
 
-        var polylines = L.geoJSON(null, {
-            onEachFeature: function(feature, layer) {
-                var popup_content = "Nama: " + feature.properties.name + "<br>" +
-                    "Deskripsi: " + feature.properties.description + "<br>" +
-                    "Dibuat: " + feature.properties.created_at;
-
-                layer.on({
-                    click: function(e) {
-                        layer.bindPopup(popup_content).openPopup();
+                    if (feature.properties.image) {
+                        var imageUrl = feature.properties.image;
+                        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                            imageUrl = storageImageUrl + '/' + imageUrl;
+                        }
+                        popupContent += '<br><img src="' + imageUrl + '" alt="Point image" style="max-width: 150px; margin-top: 5px; display: block;">';
                     }
-                });
-            }
+                    layer.bindPopup(popupContent);
+                }
+            }).eachLayer(function(layer) {
+                pointsLayer.addLayer(layer);
+            });
         });
 
-        // ✅ letakkan di luar
+        // Load saved polylines
         $.getJSON("{{ route('geojson.polylines') }}", function(data) {
-            polylines.addData(data);
-            map.addLayer(polylines);
-        });
-        //Polygons Layer
-
-        var polygons = L.geoJSON(null, {
-            onEachFeature: function(feature, layer) {
-                var popup_content = "Nama: " + feature.properties.name + "<br>" +
-                    "Deskripsi: " + feature.properties.description + "<br>" +
-                    "Dibuat: " + feature.properties.created_at;
-
-                layer.on({
-                    click: function(e) {
-                        layer.bindPopup(popup_content).openPopup();
+            L.geoJSON(data, {
+                style: {
+                    color: '#0066ff',
+                    weight: 3,
+                    opacity: 0.8
+                },
+                onEachFeature: function(feature, layer) {
+                    var popupContent = '<b>Nama:</b> ' + (feature.properties.name || '') + '<br>' +
+                        '<b>Deskripsi:</b> ' + (feature.properties.description || '') + '<br>' +
+                        '<b>Dibuat:</b> ' + (feature.properties.created_at || '');
+                    if (feature.properties.image) {
+                        var imageUrl = feature.properties.image;
+                        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                            imageUrl = storageImageUrl + '/' + imageUrl;
+                        }
+                        popupContent += '<br><img src="' + imageUrl + '" alt="Polyline image" style="max-width: 150px; margin-top: 5px; display: block;">';
                     }
-                });
-            }
+                    layer.bindPopup(popupContent);
+                }
+            }).eachLayer(function(layer) {
+                polylinesLayer.addLayer(layer);
+            });
         });
 
-        // ✅ letakkan di luar
+        // Load saved polygons
         $.getJSON("{{ route('geojson.polygons') }}", function(data) {
-            polygons.addData(data);
-            map.addLayer(polygons);
+            L.geoJSON(data, {
+                style: {
+                    color: '#ff6600',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillColor: '#ffcc99',
+                    fillOpacity: 0.3
+                },
+                onEachFeature: function(feature, layer) {
+                    var popupContent = '<b>Nama:</b> ' + (feature.properties.name || '') + '<br>' +
+                        '<b>Deskripsi:</b> ' + (feature.properties.description || '') + '<br>' +
+                        '<b>Dibuat:</b> ' + (feature.properties.created_at || '');
+                    if (feature.properties.image) {
+                        var imageUrl = feature.properties.image;
+                        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                            imageUrl = storageImageUrl + '/' + imageUrl;
+                        }
+                        popupContent += '<br><img src="' + imageUrl + '" alt="Polygon image" style="max-width: 150px; margin-top: 5px; display: block;">';
+                    }
+                    layer.bindPopup(popupContent);
+                }
+            }).eachLayer(function(layer) {
+                polygonsLayer.addLayer(layer);
+            });
         });
 
         // Control Layer
-        var baseMaps = {
-
-        };
+        var baseMaps = {};
 
         var overlayMaps = {
-            "Points": points,
-            "Polylines": polylines,
-            "Polygons": polygons,
+            "Points": pointsLayer,
+            "Polylines": polylinesLayer,
+            "Polygons": polygonsLayer
         };
 
-        var controllayer = L.control.layers(baseMaps, overlayMaps);
-        controllayer.addTo(map);
+        var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
     </script>
 @endsection
