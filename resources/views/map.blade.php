@@ -57,6 +57,25 @@
 @section('content')
     <div id="map"></div>
 
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050; margin-bottom: 20px;">
+        <div id="liveToastDeleteSuccess" class="toast align-items-center text-bg-success border-0" role="alert"
+            aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="liveToastDeleteSuccessBody"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+        <div id="liveToastDeleteError" class="toast align-items-center text-bg-danger border-0" role="alert"
+            aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="liveToastDeleteErrorBody"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
     {{-- Modal Form Input Point --}}
     <div class="modal fade" tabindex="-1" id="modalInputPoint" aria-hidden="true">
         <div class="modal-dialog">
@@ -205,7 +224,7 @@
 
         // Create custom marker icon for points
         const pointIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
             iconSize: [25, 41],
             iconAnchor: [12, 41],
@@ -327,6 +346,85 @@
         var polygonsLayer = L.layerGroup().addTo(map);
 
         var storageImageUrl = "{{ asset('storage/images') }}";
+        var csrfToken = '{{ csrf_token() }}';
+        var deleteBaseUrls = {
+            point: "{{ url('delete-point') }}",
+            polyline: "{{ url('delete-polyline') }}",
+            polygon: "{{ url('delete-polygon') }}"
+        };
+
+        function deleteUrl(type, id) {
+            return deleteBaseUrls[type] + '/' + id;
+        }
+
+        function showToast(elementId, bodyId, message) {
+            var toastEl = document.getElementById(elementId);
+            if (!toastEl) {
+                return;
+            }
+            var bodyEl = document.getElementById(bodyId);
+            if (bodyEl) {
+                bodyEl.textContent = message;
+            }
+            var toast = new bootstrap.Toast(toastEl);
+            toast.show();
+        }
+
+        function handleDeleteResponse(response, layer) {
+            if (!response.ok) {
+                return response.json().then(function(data) {
+                    throw new Error(data.message || 'Gagal menghapus data.');
+                });
+            }
+            return response.json();
+        }
+
+        map.on('popupopen', function(e) {
+            var sourceLayer = e.popup._source;
+            var popupEl = e.popup.getElement();
+            if (!popupEl) {
+                return;
+            }
+            var deleteButton = popupEl.querySelector('.delete-feature-btn');
+            if (!deleteButton) {
+                return;
+            }
+            deleteButton.addEventListener('click', function(ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                if (!confirm('Yakin ingin dihapus?')) {
+                    return;
+                }
+
+                var type = this.dataset.type;
+                var id = this.dataset.id;
+                if (!type || !id) {
+                    return;
+                }
+
+                fetch(deleteUrl(type, id), {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(function(response) {
+                    return handleDeleteResponse(response, sourceLayer);
+                })
+                .then(function(data) {
+                    if (sourceLayer) {
+                        map.removeLayer(sourceLayer);
+                    }
+                    map.closePopup();
+                    showToast('liveToastDeleteSuccess', 'liveToastDeleteSuccessBody', data.message || 'Data berhasil dihapus.');
+                })
+                .catch(function(err) {
+                    showToast('liveToastDeleteError', 'liveToastDeleteErrorBody', err.message || 'Gagal menghapus data.');
+                });
+            });
+        });
 
         // Load saved points
         $.getJSON("{{ route('geojson.points') }}", function(data) {
@@ -346,6 +444,7 @@
                         }
                         popupContent += '<br><img src="' + imageUrl + '" alt="Point image" style="max-width: 150px; margin-top: 5px; display: block;">';
                     }
+                    popupContent += '<br><button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="point" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
                     layer.bindPopup(popupContent);
                 }
             }).eachLayer(function(layer) {
@@ -372,6 +471,7 @@
                         }
                         popupContent += '<br><img src="' + imageUrl + '" alt="Polyline image" style="max-width: 150px; margin-top: 5px; display: block;">';
                     }
+                    popupContent += '<br><button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="polyline" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
                     layer.bindPopup(popupContent);
                 }
             }).eachLayer(function(layer) {
@@ -383,10 +483,10 @@
         $.getJSON("{{ route('geojson.polygons') }}", function(data) {
             L.geoJSON(data, {
                 style: {
-                    color: '#ff6600',
+                    color: '#0066ff',
                     weight: 2,
                     opacity: 0.8,
-                    fillColor: '#ffcc99',
+                    fillColor: '#99ccff',
                     fillOpacity: 0.3
                 },
                 onEachFeature: function(feature, layer) {
@@ -400,6 +500,7 @@
                         }
                         popupContent += '<br><img src="' + imageUrl + '" alt="Polygon image" style="max-width: 150px; margin-top: 5px; display: block;">';
                     }
+                    popupContent += '<br><button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="polygon" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
                     layer.bindPopup(popupContent);
                 }
             }).eachLayer(function(layer) {

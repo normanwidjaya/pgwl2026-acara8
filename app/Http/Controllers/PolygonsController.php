@@ -112,6 +112,22 @@ class PolygonsController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $polygon = $this->polygons->find($id);
+        if (!$polygon) {
+            return response()->json(['message' => 'Data polygon tidak ditemukan.'], 404);
+        }
+
+        if ($polygon->image) {
+            $imagePath = base_path('storage/images/' . $polygon->image);
+            if (file_exists($imagePath)) {
+                @unlink($imagePath);
+            }
+        }
+
+        if (!$polygon->delete()) {
+            return response()->json(['message' => 'Gagal menghapus data polygon.'], 500);
+        }
+
+        return response()->json(['message' => 'Data polygon berhasil dihapus.']);
     }
 }

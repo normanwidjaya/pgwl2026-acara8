@@ -113,6 +113,22 @@ class PointsController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $point = $this->points->find($id);
+        if (!$point) {
+            return response()->json(['message' => 'Data point tidak ditemukan.'], 404);
+        }
+
+        if ($point->image) {
+            $imagePath = base_path('storage/images/' . $point->image);
+            if (file_exists($imagePath)) {
+                @unlink($imagePath);
+            }
+        }
+
+        if (!$point->delete()) {
+            return response()->json(['message' => 'Gagal menghapus data point.'], 500);
+        }
+
+        return response()->json(['message' => 'Data point berhasil dihapus.']);
     }
 }

@@ -23,6 +23,11 @@ Route::post('/store-polylines', [PolylinesController::class, 'store'])->name('po
 // Polygons
 Route::post('/store-polygons', [PolygonsController::class, 'store'])->name('polygons.store');
 
+// Delete resources
+Route::delete('/delete-point/{id}', [PointsController::class, 'destroy'])->name('points.destroy');
+Route::delete('/delete-polyline/{id}', [PolylinesController::class, 'destroy'])->name('polylines.destroy');
+Route::delete('/delete-polygon/{id}', [PolygonsController::class, 'destroy'])->name('polygons.destroy');
+
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
