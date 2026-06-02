@@ -35,6 +35,101 @@
             background-color: rgba(255, 255, 255, 0.9);
             border: 2px solid #ccc;
         }
+                // Auto-refresh layers untuk sinkronisasi data dari QGIS
+                function refreshAllLayers() {
+                    // Clear existing layers
+                    pointsLayer.clearLayers();
+                    polylinesLayer.clearLayers();
+                    polygonsLayer.clearLayers();
+
+                    // Load points from API
+                    $.getJSON("{{ route('geojson.points') }}", function(data) {
+                        L.geoJSON(data, {
+                            pointToLayer: function(feature, latlng) {
+                                return L.marker(latlng, { icon: pointIcon });
+                            },
+                            onEachFeature: function(feature, layer) {
+                                var popupContent = '<b>Nama:</b> ' + (feature.properties.name || '') + '<br>' +
+                                    '<b>Deskripsi:</b> ' + (feature.properties.description || '') + '<br>' +
+                                    '<b>Dibuat:</b> ' + (feature.properties.created_at || '');
+
+                                if (feature.properties.image) {
+                                    var imageUrl = feature.properties.image;
+                                    if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                                        imageUrl = storageImageUrl + '/' + imageUrl;
+                                    }
+                                    popupContent += '<br><img src="' + imageUrl + '" alt="Point image" style="max-width: 150px; margin-top: 5px; display: block;">';
+                                }
+                                popupContent += '<br><a href="/points/' + feature.properties.id + '/edit" class="btn btn-sm btn-warning"><i class="fa-solid fa-pen-to-square"></i></a> <button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="point" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
+                                layer.bindPopup(popupContent);
+                            }
+                        }).eachLayer(function(layer) {
+                            pointsLayer.addLayer(layer);
+                        });
+                    });
+
+                    // Load polylines from API
+                    $.getJSON("{{ route('geojson.polylines') }}", function(data) {
+                        L.geoJSON(data, {
+                            style: {
+                                color: '#0066ff',
+                                weight: 3,
+                                opacity: 0.8
+                            },
+                            onEachFeature: function(feature, layer) {
+                                var popupContent = '<b>Nama:</b> ' + (feature.properties.name || '') + '<br>' +
+                                    '<b>Deskripsi:</b> ' + (feature.properties.description || '') + '<br>' +
+                                    '<b>Dibuat:</b> ' + (feature.properties.created_at || '');
+                                if (feature.properties.image) {
+                                    var imageUrl = feature.properties.image;
+                                    if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                                        imageUrl = storageImageUrl + '/' + imageUrl;
+                                    }
+                                    popupContent += '<br><img src="' + imageUrl + '" alt="Polyline image" style="max-width: 150px; margin-top: 5px; display: block;">';
+                                }
+                                popupContent += '<br><a href="/polylines/' + feature.properties.id + '/edit" class="btn btn-sm btn-warning"><i class="fa-solid fa-pen-to-square"></i> Edit</a> <button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="polyline" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
+                                layer.bindPopup(popupContent);
+                            }
+                        }).eachLayer(function(layer) {
+                            polylinesLayer.addLayer(layer);
+                        });
+                    });
+
+                    // Load polygons from API
+                    $.getJSON("{{ route('geojson.polygons') }}", function(data) {
+                        L.geoJSON(data, {
+                            style: {
+                                color: '#0066ff',
+                                weight: 2,
+                                opacity: 0.8,
+                                fillColor: '#99ccff',
+                                fillOpacity: 0.3
+                            },
+                            onEachFeature: function(feature, layer) {
+                                var popupContent = '<b>Nama:</b> ' + (feature.properties.name || '') + '<br>' +
+                                    '<b>Deskripsi:</b> ' + (feature.properties.description || '') + '<br>' +
+                                    '<b>Dibuat:</b> ' + (feature.properties.created_at || '');
+                                if (feature.properties.image) {
+                                    var imageUrl = feature.properties.image;
+                                    if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                                        imageUrl = storageImageUrl + '/' + imageUrl;
+                                    }
+                                    popupContent += '<br><img src="' + imageUrl + '" alt="Polygon image" style="max-width: 150px; margin-top: 5px; display: block;">';
+                                }
+                                popupContent += '<br><a href="/polygons/' + feature.properties.id + '/edit" class="btn btn-sm btn-warning"><i class="fa-solid fa-pen-to-square"></i> Edit</a> <button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="polygon" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
+                                layer.bindPopup(popupContent);
+                            }
+                        }).eachLayer(function(layer) {
+                            polygonsLayer.addLayer(layer);
+                        });
+                    });
+                }
+
+                // Initial load data
+                refreshAllLayers();
+
+                // Poll every 5 seconds to sync with QGIS changes
+                setInterval(refreshAllLayers, 5000);
 
         .leaflet-control-layers-list {
             background-color: rgba(255, 255, 255, 0.95);
@@ -70,6 +165,22 @@
             aria-live="assertive" aria-atomic="true">
             <div class="d-flex">
                 <div class="toast-body" id="liveToastDeleteErrorBody"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+        <div id="liveToastEditSuccess" class="toast align-items-center text-bg-success border-0" role="alert"
+            aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="liveToastEditSuccessBody"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+        <div id="liveToastEditError" class="toast align-items-center text-bg-danger border-0" role="alert"
+            aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="liveToastEditErrorBody"></div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
                     aria-label="Close"></button>
             </div>
@@ -156,6 +267,47 @@
         </div>
     </div>
 
+    {{-- Modal Form Edit Polyline --}}
+    <div class="modal fade" tabindex="-1" id="modalEditPolyline" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Polyline</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="formEditPolyline" method="post" enctype="multipart/form-data">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="edit_name_polyline" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="edit_name_polyline" name="name"
+                                placeholder="Fill name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_description_polyline" class="form-label">Description</label>
+                            <textarea class="form-control" id="edit_description_polyline" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_geometry_polyline" class="form-label">Geometry</label>
+                            <textarea class="form-control" id="edit_geometry_polyline" name="geometry_polyline" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_image_polyline" class="form-label">Image</label>
+                            <input class="form-control" type="file" id="edit_image_polyline" name="image" onchange="document.getElementById('edit_preview_image_polyline').src = window.URL.createObjectURL(this.files[0])">
+                            <div class="mb-3">
+                                <img src="" alt="" id="edit_preview_image_polyline" class="img-thumbnail" width="400"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Modal Form Input Polygon --}}
     <div class="modal fade" tabindex="-1" id="modalInputPolygon" aria-hidden="true">
         <div class="modal-dialog">
@@ -192,6 +344,81 @@
                         <button type="submit" class="btn btn-primary">Save</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal Form Edit Polygon --}}
+    <div class="modal fade" tabindex="-1" id="modalEditPolygon" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Polygon</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="formEditPolygon" method="post" enctype="multipart/form-data">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="edit_name_polygon" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="edit_name_polygon" name="name"
+                                placeholder="Fill name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_description_polygon" class="form-label">Description</label>
+                            <textarea class="form-control" id="edit_description_polygon" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_geometry_polygon" class="form-label">Geometry</label>
+                            <textarea class="form-control" id="edit_geometry_polygon" name="geometry_polygon" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_image_polygon" class="form-label">Image</label>
+                            <input class="form-control" type="file" id="edit_image_polygon" name="image" onchange="document.getElementById('edit_preview_image_polygon').src = window.URL.createObjectURL(this.files[0])">
+                            <div class="mb-3">
+                                <img src="" alt="" id="edit_preview_image_polygon" class="img-thumbnail" width="400"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="successModalEditPolyline" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Polyline Berhasil</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Perubahan polyline berhasil disimpan.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="successModalEditPolygon" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Polygon Berhasil</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Perubahan polygon berhasil disimpan.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Tutup</button>
+                </div>
             </div>
         </div>
     </div>
@@ -386,43 +613,179 @@
                 return;
             }
             var deleteButton = popupEl.querySelector('.delete-feature-btn');
-            if (!deleteButton) {
-                return;
-            }
-            deleteButton.addEventListener('click', function(ev) {
-                ev.preventDefault();
-                ev.stopPropagation();
+            if (deleteButton) {
+                deleteButton.addEventListener('click', function(ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
 
-                if (!confirm('Yakin ingin dihapus?')) {
-                    return;
-                }
-
-                var type = this.dataset.type;
-                var id = this.dataset.id;
-                if (!type || !id) {
-                    return;
-                }
-
-                fetch(deleteUrl(type, id), {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
+                    if (!confirm('Yakin ingin dihapus?')) {
+                        return;
                     }
-                })
-                .then(function(response) {
-                    return handleDeleteResponse(response, sourceLayer);
-                })
-                .then(function(data) {
-                    if (sourceLayer) {
-                        map.removeLayer(sourceLayer);
+
+                    var type = this.dataset.type;
+                    var id = this.dataset.id;
+                    if (!type || !id) {
+                        return;
                     }
-                    map.closePopup();
-                    showToast('liveToastDeleteSuccess', 'liveToastDeleteSuccessBody', data.message || 'Data berhasil dihapus.');
-                })
-                .catch(function(err) {
-                    showToast('liveToastDeleteError', 'liveToastDeleteErrorBody', err.message || 'Gagal menghapus data.');
+
+                    fetch(deleteUrl(type, id), {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(function(response) {
+                        return handleDeleteResponse(response, sourceLayer);
+                    })
+                    .then(function(data) {
+                        if (sourceLayer) {
+                            map.removeLayer(sourceLayer);
+                        }
+                        map.closePopup();
+                        showToast('liveToastDeleteSuccess', 'liveToastDeleteSuccessBody', data.message || 'Data berhasil dihapus.');
+                    })
+                    .catch(function(err) {
+                        showToast('liveToastDeleteError', 'liveToastDeleteErrorBody', err.message || 'Gagal menghapus data.');
+                    });
                 });
+            }
+
+            var editButton = popupEl.querySelector('.edit-feature-btn');
+            if (editButton) {
+                editButton.addEventListener('click', function(ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+
+                    var type = this.dataset.type;
+                    var id = this.dataset.id;
+                    if (!type || !id) {
+                        return;
+                    }
+
+                    // Fetch data
+                    fetch('/' + type + 's/' + id, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(function(response) {
+                        if (!response.ok) {
+                            throw new Error('Gagal mengambil data.');
+                        }
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        // Fill modal based on type
+                        if (type === 'polyline') {
+                            $('#edit_name_polyline').val(data.name);
+                            $('#edit_description_polyline').val(data.description);
+                            $('#edit_geometry_polyline').val(data.geom);
+                            if (data.image) {
+                                $('#edit_preview_image_polyline').attr('src', storageImageUrl + '/' + data.image);
+                            } else {
+                                $('#edit_preview_image_polyline').attr('src', '');
+                            }
+                            $('#formEditPolyline').attr('action', '/polylines/' + id);
+                            var modalEl = document.getElementById('modalEditPolyline');
+                            var bsModal = new bootstrap.Modal(modalEl);
+                            bsModal.show();
+                            $('#modalEditPolyline').on('hidden.bs.modal', function() {
+                                location.reload();
+                            });
+                        } else if (type === 'polygon') {
+                            $('#edit_name_polygon').val(data.name);
+                            $('#edit_description_polygon').val(data.description);
+                            $('#edit_geometry_polygon').val(data.geom);
+                            if (data.image) {
+                                $('#edit_preview_image_polygon').attr('src', storageImageUrl + '/' + data.image);
+                            } else {
+                                $('#edit_preview_image_polygon').attr('src', '');
+                            }
+                            $('#formEditPolygon').attr('action', '/polygons/' + id);
+                            var modalEl = document.getElementById('modalEditPolygon');
+                            var bsModal = new bootstrap.Modal(modalEl);
+                            bsModal.show();
+                            $('#modalEditPolygon').on('hidden.bs.modal', function() {
+                                location.reload();
+                            });
+                        }
+                    })
+                    .catch(function(err) {
+                        showToast('liveToastDeleteError', 'liveToastDeleteErrorBody', err.message || 'Gagal mengambil data.');
+                    });
+                });
+            }
+        });
+
+        // Handle edit form submits
+
+        $('#formEditPolyline').on('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: formData
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    return response.json().then(function(data) {
+                        throw new Error(data.message || 'Gagal mengupdate data.');
+                    });
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                $('#modalEditPolyline').modal('hide');
+                showToast('liveToastEditSuccess', 'liveToastEditSuccessBody', data.message || 'Data berhasil diupdate.');
+                var successModal = new bootstrap.Modal(document.getElementById('successModalEditPolyline'));
+                successModal.show();
+                setTimeout(function() {
+                    successModal.hide();
+                    location.reload();
+                }, 1800);
+            })
+            .catch(function(err) {
+                showToast('liveToastEditError', 'liveToastEditErrorBody', err.message || 'Gagal mengupdate data.');
+            });
+        });
+
+        $('#formEditPolygon').on('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: formData
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    return response.json().then(function(data) {
+                        throw new Error(data.message || 'Gagal mengupdate data.');
+                    });
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                $('#modalEditPolygon').modal('hide');
+                showToast('liveToastEditSuccess', 'liveToastEditSuccessBody', data.message || 'Data berhasil diupdate.');
+                var successModal = new bootstrap.Modal(document.getElementById('successModalEditPolygon'));
+                successModal.show();
+                setTimeout(function() {
+                    successModal.hide();
+                    location.reload();
+                }, 1800);
+            })
+            .catch(function(err) {
+                showToast('liveToastEditError', 'liveToastEditErrorBody', err.message || 'Gagal mengupdate data.');
             });
         });
 
@@ -444,7 +807,7 @@
                         }
                         popupContent += '<br><img src="' + imageUrl + '" alt="Point image" style="max-width: 150px; margin-top: 5px; display: block;">';
                     }
-                    popupContent += '<br><button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="point" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
+                    popupContent += '<br><a href="/points/' + feature.properties.id + '/edit" class="btn btn-sm btn-warning"><i class="fa-solid fa-pen-to-square"></i></a> <button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="point" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
                     layer.bindPopup(popupContent);
                 }
             }).eachLayer(function(layer) {
@@ -471,7 +834,7 @@
                         }
                         popupContent += '<br><img src="' + imageUrl + '" alt="Polyline image" style="max-width: 150px; margin-top: 5px; display: block;">';
                     }
-                    popupContent += '<br><button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="polyline" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
+                    popupContent += '<br><a href="/polylines/' + feature.properties.id + '/edit" class="btn btn-sm btn-warning"><i class="fa-solid fa-pen-to-square"></i> Edit</a> <button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="polyline" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
                     layer.bindPopup(popupContent);
                 }
             }).eachLayer(function(layer) {
@@ -500,7 +863,7 @@
                         }
                         popupContent += '<br><img src="' + imageUrl + '" alt="Polygon image" style="max-width: 150px; margin-top: 5px; display: block;">';
                     }
-                    popupContent += '<br><button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="polygon" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
+                    popupContent += '<br><a href="/polygons/' + feature.properties.id + '/edit" class="btn btn-sm btn-warning"><i class="fa-solid fa-pen-to-square"></i> Edit</a> <button type="button" class="btn btn-sm btn-danger delete-feature-btn" data-type="polygon" data-id="' + feature.properties.id + '"><i class="fa-solid fa-trash"></i></button>';
                     layer.bindPopup(popupContent);
                 }
             }).eachLayer(function(layer) {

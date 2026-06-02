@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\polygonsModel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PolygonsController extends Controller
 {
@@ -67,15 +68,15 @@ class PolygonsController extends Controller
             $name_image = null;
         }
 
-        $data = [
-            'geom' => $request->geometry_polygon,
-            'name' => $request->name,
-            'description' => $request->description,
-            'image' => $name_image
-        ];
+        // Simpan data ke database (gunakan ST_GeomFromGeoJSON)
+        $inserted = DB::insert('INSERT INTO polygons (geom, name, description, image, created_at, updated_at) VALUES (ST_GeomFromGeoJSON(?), ?, ?, ?, NOW(), NOW())', [
+            $request->geometry_polygon,
+            $request->name,
+            $request->description,
+            $name_image
+        ]);
 
-        // Simpan data ke database
-        if (!$this->polygons->create($data)) {
+        if (!$inserted) {
             return redirect()->route('peta')->with('error', 'Gagal menyimpan data polygon.');
         }
 
@@ -88,7 +89,20 @@ class PolygonsController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $polygon = $this->polygons->find($id);
+        if (!$polygon) {
+            return response()->json(['message' => 'Data polygon tidak ditemukan.'], 404);
+        }
+
+        return response()->json([
+            'id' => $polygon->id,
+            'name' => $polygon->name,
+            'description' => $polygon->description,
+            'geom' => $polygon->geom,
+            'image' => $polygon->image,
+            'created_at' => $polygon->created_at,
+            'updated_at' => $polygon->updated_at,
+        ]);
     }
 
     /**
@@ -96,7 +110,15 @@ class PolygonsController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $polygon = $this->polygons->find($id);
+        if (!$polygon) {
+            return redirect()->route('peta')->with('error', 'Data polygon tidak ditemukan.');
+        }
+
+        return view('polygon-edit', [
+            'title' => 'Edit Polygon',
+            'polygon' => $polygon,
+        ]);
     }
 
     /**
@@ -104,7 +126,66 @@ class PolygonsController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $polygon = $this->polygons->find($id);
+        if (!$polygon) {
+            return response()->json(['message' => 'Data polygon tidak ditemukan.'], 404);
+        }
+
+        // Validasi input
+        $request->validate([
+            'geometry_polygon' => 'required',
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
+        ],
+        [ 'geometry_polygon.required' => 'Field geometry polygon harus diisi.',
+            'name.required' => 'Field name harus diisi.',
+            'name.string' => 'Field name harus berupa string.',
+            'name.max' => 'Field name tidak boleh melebihi 255 karakter.',
+            'description.required' => 'Field description harus diisi.',
+            'description.string' => 'Field description harus berupa string.',
+            'image.image' => 'File yang diunggah harus berupa gambar.',
+            'image.mimes' => 'File yang diunggah harus berupa file dengan ekstensi: jpeg, png, jpg.',
+            'image.max' => 'Ukuran file tidak boleh melebihi 2MB.',
+        ]
+        );
+
+        // Create directory for images if it doesn't exist
+        if (!is_dir('storage/images')) {
+            mkdir('./storage/images', 0777, true);
+        }
+
+        // Get the uploaded image
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($polygon->image) {
+                $oldImagePath = base_path('storage/images/' . $polygon->image);
+                if (file_exists($oldImagePath)) {
+                    @unlink($oldImagePath);
+                }
+            }
+
+            $image = $request->file('image');
+            $name_image = time() . "_polygon." . strtolower($image->getClientOriginalExtension());
+            $image->move('storage/images', $name_image);
+        } else {
+            $name_image = $polygon->image; // Keep old image
+        }
+
+        // Update data ke database (gunakan ST_GeomFromGeoJSON)
+        $affected = DB::update('UPDATE polygons SET geom = ST_GeomFromGeoJSON(?), name = ?, description = ?, image = ?, updated_at = NOW() WHERE id = ?', [
+            $request->geometry_polygon,
+            $request->name,
+            $request->description,
+            $name_image,
+            $id
+        ]);
+
+        if ($affected === 0) {
+            return response()->json(['message' => 'Gagal mengupdate data polygon.'], 500);
+        }
+
+        return response()->json(['message' => 'Data polygon berhasil diupdate.']);
     }
 
     /**

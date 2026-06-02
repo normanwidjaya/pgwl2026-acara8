@@ -8,6 +8,8 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+// GeoJSON API
 Route::get('/points', [ApiController::class, 'geojson_points'])->name('geojson.points');
+Route::get('/point/{id}', [ApiController::class, 'geojson_point'])->name('geojson.point');
 Route::get('/polylines', [ApiController::class, 'geojson_polylines'])->name('geojson.polylines');
 Route::get('/polygons', [ApiController::class, 'geojson_polygons'])->name('geojson.polygons');
